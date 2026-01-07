@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- NOSSOS MODELS ----------
+
+model User {
+  id           Int    @id @default(autoincrement())
+  email        String @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  // Relações
+  attendanceCards AttendanceCard[]
+
+  @@map("users")
+}
+
+model AttendanceCard {
+  id          Int      @id @default(autoincrement())
+  company     String
+  eventType   String
+  description String?
+  status      String   @default("pending")
+  totalHours  Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relação com usuário
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_cards")
+}
+
