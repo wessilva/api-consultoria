@@ -10,7 +10,8 @@ routes.post("/register", (req, res, next) =>
   userController.register(req, res, next)
 );
 
-routes.post("/login", (req, res, next) => userController.login(req, res, next));
+routes.post("/login", (req, res, next) =>
+   userController.login(req, res, next));
 
 // --- ROTAS PROTEGIDAS ---
 routes.get("/users", authMiddleware, (req, res, next) =>

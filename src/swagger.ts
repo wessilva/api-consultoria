@@ -1,6 +1,7 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import { Express } from "express";
 import swaggerUi from "swagger-ui-express";
+import { env } from "./config/env"; // ✅ Usa variáveis validadas
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -15,10 +16,17 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: `http://localhost:${process.env.PORT || 3333}`,
+        url: `http://localhost:${env.PORT}`,
         description: "Servidor de desenvolvimento",
-        
       },
+      ...(env.NODE_ENV === "production"
+        ? [
+            {
+              url: "https://api-consultoria-production.up.railway.app",
+              description: "Servidor de produção",
+            },
+          ]
+        : []),
     ],
     components: {
       securitySchemes: {
@@ -42,9 +50,5 @@ const swaggerSpec = swaggerJsdoc(options);
 
 export const setupSwagger = (app: Express) => {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  console.log(
-    `Swagger disponível em http://localhost:${
-      process.env.PORT || 3333
-    }/api-docs`
-  );
+  console.log(`📚 Swagger: http://localhost:${env.PORT}/api-docs`);
 };
