@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AttendanceCardService } from "../services/attendanceCard.service";
-import { AppError } from "../middlewares/errorHandler";
+import { AppError } from "../errors/AppError";
 
 const attendanceCardService = new AttendanceCardService();
 
