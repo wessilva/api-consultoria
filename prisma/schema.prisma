@@ -24,6 +24,18 @@ model User {
   @@map("users")
 }
 
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  email     String?
+  telefone  String?
+  endereco  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
+}
+
 model AttendanceCard {
   id          Int      @id @default(autoincrement())
   company     String
