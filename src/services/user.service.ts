@@ -20,14 +20,16 @@ export interface AuthResponse {
     id: number;
     name: string;
     email: string;
+    role: string;
+    tenantId: string | null;
   };
 }
 
 export class UserService {
   async createUser(data: CreateUserDTO) {
-    // Verificar se o email já está em uso
-    const emailExists = await prisma.user.findUnique({
-      where: { email: data.email },
+    // Verificar se o email já está em uso (sem tenant = super admin)
+    const emailExists = await prisma.user.findFirst({
+      where: { email: data.email, tenantId: null },
     });
 
     if (emailExists) {
@@ -50,9 +52,10 @@ export class UserService {
   }
 
   async authenticate(email: string, password: string): Promise<AuthResponse> {
-    // Buscar o usuário pelo email
-    const user = await prisma.user.findUnique({
+    // Buscar o usuário pelo email (usando findFirst porque email não é unique sozinho)
+    const user = await prisma.user.findFirst({
       where: { email },
+      include: { tenant: true },
     });
 
     if (!user) {
@@ -67,7 +70,14 @@ export class UserService {
     }
 
     // Gerar o token JWT usando as variáveis validadas
-    const token = jwt.sign({ id: user.id }, String(env.JWT_SECRET));
+    const token = jwt.sign(
+      {
+        id: user.id,
+        tenantId: user.tenantId,
+        role: user.role,
+      },
+      String(env.JWT_SECRET),
+    );
 
     return {
       token,
@@ -75,6 +85,8 @@ export class UserService {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
       },
     };
   }

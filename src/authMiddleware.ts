@@ -20,6 +20,9 @@ declare global {
         id: string; // ID como string (compatível com JWT)
         userId: number; // ID como number (para queries do Prisma)
       };
+      userId: number;
+      tenantId: string | null;
+      role: string;
     }
   }
 }
@@ -39,7 +42,7 @@ interface JWTPayload {
 export const authMiddleware = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { authorization } = req.headers;
@@ -67,7 +70,7 @@ export const authMiddleware = async (
     // (usuário pode ter sido deletado após criar o token)
     const user = await prisma.user.findUnique({
       where: { id: parseInt(decoded.id) },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, tenantId: true, role: true },
     });
 
     if (!user) {
@@ -80,6 +83,11 @@ export const authMiddleware = async (
       id: user.id.toString(),
       userId: user.id,
     };
+
+    // Adiciona userId, tenantId e role diretamente no request para facilitar acesso
+    req.userId = user.id;
+    req.tenantId = user.tenantId;
+    req.role = user.role;
 
     // 6. Passar para o próximo middleware/controller
     return next();

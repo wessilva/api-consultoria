@@ -7,35 +7,91 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
 }
 
-// ---------- NOSSOS MODELS ----------
+// ═══════════════════════════════════════════════════════
+// TENANT - Empresa que contratou o SaaS
+// ═══════════════════════════════════════════════════════
+model Tenant {
+  id       String  @id @default(uuid())
+  name     String // Nome da empresa contratante
+  slug     String  @unique // URL amigável: "empresa-abc"
+  plan     String  @default("basic") // basic, pro, enterprise
+  isActive Boolean @default(true)
+  maxUsers Int     @default(5) // Limite de usuários por plano
 
-model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  name         String
-  passwordHash String
-  createdAt    DateTime @default(now())
+  // Dados de contato/faturamento
+  ownerName  String?
+  ownerEmail String?
+  ownerPhone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relações
+  users           User[]
+  companies       Company[]
   attendanceCards AttendanceCard[]
 
+  @@map("tenants")
+}
+
+// ═══════════════════════════════════════════════════════
+// USER - Usuário de um Tenant específico
+// ═══════════════════════════════════════════════════════
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String
+  name         String
+  passwordHash String
+  role         String   @default("user") // user, admin, owner
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  // Vinculado ao Tenant (opcional para super admin)
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Relações
+  companies       Company[]
+  attendanceCards AttendanceCard[]
+
+  // Email único POR tenant
+  @@unique([tenantId, email])
+  @@index([tenantId])
   @@map("users")
 }
 
+// ═══════════════════════════════════════════════════════
+// COMPANY - Clientes do Tenant (quem recebe consultoria)
+// ═══════════════════════════════════════════════════════
 model Company {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  name      String
   email     String?
   telefone  String?
   endereco  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Vinculado ao Tenant
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Quem cadastrou
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Nome único POR tenant
+  @@unique([tenantId, name])
+  @@index([tenantId])
   @@map("companies")
 }
 
+// ═══════════════════════════════════════════════════════
+// ATTENDANCE CARD - Cartão de Atendimento
+// ═══════════════════════════════════════════════════════
 model AttendanceCard {
   id          Int      @id @default(autoincrement())
   company     String
@@ -46,9 +102,15 @@ model AttendanceCard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relação com usuário
+  // Vinculado ao Tenant
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Vinculado ao usuário que criou
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@index([tenantId, userId])
   @@map("attendance_cards")
 }

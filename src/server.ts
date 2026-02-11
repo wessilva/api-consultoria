@@ -7,6 +7,7 @@ import { env } from "./config/env"; // ✅ Importa variáveis validadas
 import userRoutes from "./userRoutes";
 import attendanceCardRoutes from "./attendanceCardRoutes";
 import companyRoutes from "./companyRoutes";
+import adminRoutes from "./adminRoutes"; // ✅ Rotas de admin e onboarding
 
 // Importa os middlewares de erro
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
@@ -54,6 +55,11 @@ app.get("/health", (req, res) => {
 // ═══════════════════════════════════════════════════════
 // ROTAS DA APLICAÇÃO
 // ═══════════════════════════════════════════════════════
+
+// Rotas públicas primeiro (onboarding não precisa de auth)
+app.use(adminRoutes); // ✅ Rotas de admin e onboarding
+
+// Rotas que podem ter auth
 app.use(userRoutes);
 app.use(attendanceCardRoutes);
 app.use(companyRoutes);

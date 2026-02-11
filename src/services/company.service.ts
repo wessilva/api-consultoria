@@ -1,14 +1,16 @@
 import { prisma } from "../lib/prisma";
 import { AppError } from "../errors/AppError";
 
-interface CreateCompanyData {
+interface CreateCompanyDTO {
   name: string;
   email?: string;
   telefone?: string;
   endereco?: string;
+  userId: number;
+  tenantId?: string;
 }
 
-interface UpdateCompanyData {
+interface UpdateCompanyDTO {
   name?: string;
   email?: string;
   telefone?: string;
@@ -16,16 +18,20 @@ interface UpdateCompanyData {
 }
 
 export const companyService = {
-  async list() {
+  async list(userId: number) {
     return prisma.company.findMany({
+      where: { userId },
       orderBy: { name: "asc" },
     });
   },
 
-  async create(data: CreateCompanyData) {
-    // Verificar se já existe uma empresa com esse nome
-    const existingCompany = await prisma.company.findUnique({
-      where: { name: data.name },
+  async create(data: CreateCompanyDTO) {
+    // Verificar se já existe uma empresa com esse nome para este usuário/tenant
+    const existingCompany = await prisma.company.findFirst({
+      where: {
+        name: data.name,
+        userId: data.userId,
+      },
     });
 
     if (existingCompany) {
@@ -38,13 +44,15 @@ export const companyService = {
         email: data.email,
         telefone: data.telefone,
         endereco: data.endereco,
+        userId: data.userId,
+        tenantId: data.tenantId,
       },
     });
   },
 
-  async getById(id: number) {
-    const company = await prisma.company.findUnique({
-      where: { id },
+  async getById(id: number, userId: number) {
+    const company = await prisma.company.findFirst({
+      where: { id, userId },
     });
 
     if (!company) {
@@ -54,10 +62,10 @@ export const companyService = {
     return company;
   },
 
-  async update(id: number, data: UpdateCompanyData) {
-    // Verificar se a empresa existe
-    const company = await prisma.company.findUnique({
-      where: { id },
+  async update(id: number, userId: number, data: UpdateCompanyDTO) {
+    // Verificar se a empresa existe e pertence ao usuário
+    const company = await prisma.company.findFirst({
+      where: { id, userId },
     });
 
     if (!company) {
@@ -66,8 +74,12 @@ export const companyService = {
 
     // Se está mudando o nome, verificar se já existe outra empresa com esse nome
     if (data.name && data.name !== company.name) {
-      const existingCompany = await prisma.company.findUnique({
-        where: { name: data.name },
+      const existingCompany = await prisma.company.findFirst({
+        where: {
+          name: data.name,
+          userId,
+          NOT: { id },
+        },
       });
 
       if (existingCompany) {
@@ -81,10 +93,10 @@ export const companyService = {
     });
   },
 
-  async delete(id: number, force: boolean = false) {
-    // Verificar se a empresa existe
-    const company = await prisma.company.findUnique({
-      where: { id },
+  async delete(id: number, userId: number, force: boolean = false) {
+    // Verificar se a empresa existe e pertence ao usuário
+    const company = await prisma.company.findFirst({
+      where: { id, userId },
     });
 
     if (!company) {
@@ -95,6 +107,7 @@ export const companyService = {
     const attendanceCardsCount = await prisma.attendanceCard.count({
       where: {
         company: company.name,
+        userId,
       },
     });
 
@@ -102,7 +115,7 @@ export const companyService = {
     if (attendanceCardsCount > 0 && !force) {
       const error = new AppError(
         `Esta empresa possui ${attendanceCardsCount} atendimento(s) vinculado(s). Deseja excluir a empresa e todos os atendimentos?`,
-        409
+        409,
       );
       (error as any).attendanceCardsCount = attendanceCardsCount;
       throw error;
@@ -113,6 +126,7 @@ export const companyService = {
       await prisma.attendanceCard.deleteMany({
         where: {
           company: company.name,
+          userId,
         },
       });
     }
