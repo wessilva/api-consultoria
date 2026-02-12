@@ -3,10 +3,11 @@ import { companyService } from "../services/company.service";
 import { AppError } from "../errors/AppError";
 
 export const companyController = {
-  // Listar todas as empresas do usuário
+  // Listar todas as empresas do tenant (ou do usuário se sem tenant)
   async list(req: Request, res: Response) {
     const userId = (req as any).userId;
-    const companies = await companyService.list(userId);
+    const tenantId = (req as any).tenantId;
+    const companies = await companyService.list(userId, tenantId);
     return res.json(companies);
   },
 

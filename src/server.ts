@@ -8,6 +8,7 @@ import userRoutes from "./userRoutes";
 import attendanceCardRoutes from "./attendanceCardRoutes";
 import companyRoutes from "./companyRoutes";
 import adminRoutes from "./adminRoutes"; // ✅ Rotas de admin e onboarding
+import ownerRoutes from "./ownerRoutes";
 
 // Importa os middlewares de erro
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
@@ -61,6 +62,7 @@ app.use(adminRoutes); // ✅ Rotas de admin e onboarding
 
 // Rotas que podem ter auth
 app.use(userRoutes);
+app.use("/owner", ownerRoutes);
 app.use(attendanceCardRoutes);
 app.use(companyRoutes);
 

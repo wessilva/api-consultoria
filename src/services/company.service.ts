@@ -18,9 +18,12 @@ interface UpdateCompanyDTO {
 }
 
 export const companyService = {
-  async list(userId: number) {
+  async list(userId: number, tenantId?: string) {
+    // Se tem tenantId, lista todas as empresas do tenant
+    // Caso contrário, filtra por userId (compatibilidade)
+    const where = tenantId ? { tenantId } : { userId };
     return prisma.company.findMany({
-      where: { userId },
+      where,
       orderBy: { name: "asc" },
     });
   },

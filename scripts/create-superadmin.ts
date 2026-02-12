@@ -8,8 +8,8 @@ async function createSuperAdmin() {
   // CONFIGURE AQUI OS DADOS DO SUPER ADMIN
   // ═══════════════════════════════════════════════════════
   const SUPER_ADMIN = {
-    email: "admin@admin.com",
-    name: "Super Admin",
+    email: "wesley@admin.com",
+    name: "Wesley Silva",
     password: "admin123", // Troque por uma senha forte!
   };
 

@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import bcrypt from "bcryptjs";
 import {
   NotFoundError,
   ConflictError,
@@ -14,9 +15,10 @@ export interface CreateTenantDTO {
   slug?: string;
   plan?: string;
   maxUsers?: number;
-  ownerName?: string;
-  ownerEmail?: string;
+  ownerName: string;
+  ownerEmail: string;
   ownerPhone?: string;
+  password: string; // Senha do owner que será criado
 }
 
 export interface UpdateTenantDTO {
@@ -115,9 +117,16 @@ export const tenantService = {
   },
 
   /**
-   * Cria um novo tenant
+   * Cria um novo tenant + usuário owner em transação
    */
   async create(data: CreateTenantDTO) {
+    // Validações
+    if (!data.ownerName || !data.ownerEmail || !data.password) {
+      throw new ConflictError(
+        "Nome, email e senha do responsável são obrigatórios",
+      );
+    }
+
     // Gera slug se não foi fornecido
     const slug = data.slug || this.generateSlug(data.name);
 
@@ -130,17 +139,67 @@ export const tenantService = {
       throw new ConflictError("Já existe um tenant com este nome/slug");
     }
 
-    return prisma.tenant.create({
-      data: {
-        name: data.name,
-        slug,
-        plan: data.plan || "basic",
-        maxUsers: data.maxUsers || 5,
-        ownerName: data.ownerName,
-        ownerEmail: data.ownerEmail,
-        ownerPhone: data.ownerPhone,
-      },
+    // Verifica se email já está em uso
+    const existingUser = await prisma.user.findFirst({
+      where: { email: data.ownerEmail },
     });
+
+    if (existingUser) {
+      throw new ConflictError("Este email já está cadastrado");
+    }
+
+    // Limites por plano
+    const planLimits: Record<string, number> = {
+      basic: 5,
+      pro: 15,
+      enterprise: 50,
+    };
+
+    const plan = data.plan || "basic";
+    const maxUsers = data.maxUsers || planLimits[plan] || 5;
+
+    // Cria tenant + owner em transação atômica
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Criar o tenant
+      const tenant = await tx.tenant.create({
+        data: {
+          name: data.name,
+          slug,
+          plan,
+          maxUsers,
+          ownerName: data.ownerName,
+          ownerEmail: data.ownerEmail,
+          ownerPhone: data.ownerPhone,
+        },
+      });
+
+      // 2. Criar hash da senha
+      const passwordHash = await bcrypt.hash(data.password, 10);
+
+      // 3. Criar usuário owner vinculado ao tenant
+      const owner = await tx.user.create({
+        data: {
+          email: data.ownerEmail,
+          name: data.ownerName,
+          passwordHash,
+          role: "owner",
+          tenantId: tenant.id,
+          isActive: true,
+        },
+      });
+
+      return { tenant, owner };
+    });
+
+    return {
+      ...result.tenant,
+      owner: {
+        id: result.owner.id,
+        name: result.owner.name,
+        email: result.owner.email,
+        role: result.owner.role,
+      },
+    };
   },
 
   /**
